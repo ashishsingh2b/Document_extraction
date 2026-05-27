@@ -1,0 +1,10 @@
+{
+    "version": "1.0",
+    "dataset_size": 29,
+    "accuracy": 1.0,
+    "f1_score": 1.0,
+    "top_features": [],
+    "trained_at": "2026-05-26T09:42:43.978151",
+    "python_version": "3.12.13",
+    "sklearn_version": "1.8.0"
+}

@@ -1,0 +1,119 @@
+{
+  "version": "1.0",
+  "description": "Indian GST invoice format profiles. Add new entries here when a new layout appears.",
+  "profiles": [
+    {
+      "id": "gayatri_box",
+      "label": "GAYATRI SAREE box layout (Billed To + Name of Product + IGST)",
+      "signals": ["name of product", "billed to (customer)", "total.....", "+ igst"],
+      "supplier_signals": ["gayatri saree"],
+      "tax_type": "igst"
+    },
+    {
+      "id": "komal_prints",
+      "label": "KOMAL PRINTS (Buyer: + BILL NO + CGST @ on Taxable)",
+      "signals": ["komal prints", "buyer:", "bill no", "cgst @", "invoice value"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "muskan_glued",
+      "label": "MUSKAN / KHUSHBOO glued OCR (Details of Consignee)",
+      "signals": ["details of consignee", "description of goods", "gross amount", "net amount", "chandralok", "total amt after tax", "discount"],
+      "supplier_signals": ["muskan collection", "khushboo creation", "chandralok creation"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "shivam_fashion",
+      "label": "SHIVAM FASHION (Seller/Buyer + PARTICULAR + Central/State GST)",
+      "signals": ["shivam fashion", "particular", "central gst", "state gst", "receiver / billed to"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "mr_fashion_chandni",
+      "label": "M.R FASHION Chandni app (SALE TAX INVOICE + Items Name)",
+      "signals": ["m.r fashion", "sale tax invoice", "chandni software", "items name"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "suswaani_debit",
+      "label": "SHREE SUSWAANI Debit Memo",
+      "signals": ["suswaani", "debit memo", "sub total", "plastic bag"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "gayatri_traders",
+      "label": "GAYATRI TRADERS Vyara (dashed lines + Kgs)",
+      "signals": ["gayatri traders", "kapad bazar", "details of receiver(billed to)", " kgs "],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "sagas_collection",
+      "label": "SAGAS COLLECTION (Description Of Goods + Cut/Pcs/Mts)",
+      "signals": ["sagas collection", "description of goods", "total amount before tax", "packing material"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "balkrishna_debit",
+      "label": "SHREE BALKRUSHNA Debit Memo (M/s. + Central Tax)",
+      "signals": ["balkrishna", "debit memo tax invoice", "m/s.", "central tax", "product name"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "shivalaxmi_grid",
+      "label": "SHIVALAXMI DESIGNER (multi-column CGST in grid)",
+      "signals": ["shivalaxmi", "description of goods hsn", "tax ass.value"],
+      "tax_type": "cgst_sgst"
+    },
+    {
+      "id": "alakh_supplier_invoice",
+      "label": "ALAKH INTERNATIONAL as supplier (IGST inter-state)",
+      "signals": ["alakh international", "manufacture & traders", "total amount before", "igst 5.00%"],
+      "supplier_signals": ["alakh international"],
+      "tax_type": "igst"
+    },
+    {
+      "id": "alakh_expense_register",
+      "label": "ALAKH INTERNATIONAL Expense/Broker Register (Row Labels + TAXABLE + GST + TOTAL VALUE)",
+      "required_signals": ["row labels", "total value"],
+      "exclusive_signals": ["bill no", "invoice no", "cgst @", "sgst @", "tax invoice", "billno"],
+      "signals": ["row labels", "taxable", "total value", "alakh international", "grand total"],
+      "supplier_signals": ["alakh international"],
+      "tax_type": "cgst_sgst",
+      "priority": 10
+    },
+    {
+      "id": "generic_expense_register",
+      "label": "Generic Expense/Purchase Register (Row Labels + TAXABLE + GST + TOTAL VALUE summary)",
+      "required_signals": ["row labels", "total value"],
+      "exclusive_signals": ["bill no", "invoice no", "cgst @", "sgst @", "tax invoice"],
+      "signals": ["row labels", "taxable", "total value", "grand total", "type"],
+      "tax_type": "cgst_sgst",
+      "priority": 8
+    },
+    {
+      "id": "alakh_sale_outstanding_report",
+      "label": "ALAKH INTERNATIONAL Sale Outstanding Report (Party Wise - Multi-page)",
+      "required_signals": ["outstanding report", "billno"],
+      "exclusive_signals": ["row labels", "tax invoice", "cgst @"],
+      "signals": ["sale outstanding report", "party wise", "billno", "grossamt", "gstamt", "balance", "printed on"],
+      "supplier_signals": ["alakh international"],
+      "tax_type": "igst",
+      "priority": 20
+    },
+    {
+      "id": "generic_outstanding_report",
+      "label": "Generic Outstanding/Ledger Report (BillNo + GrossAmt + Balance columns)",
+      "required_signals": ["outstanding report"],
+      "exclusive_signals": ["row labels", "tax invoice", "cgst @"],
+      "signals": ["outstanding report", "party wise", "billno", "grossamt", "balance", "days"],
+      "tax_type": "auto",
+      "priority": 18
+    },
+    {
+      "id": "universal",
+      "label": "Generic fallback",
+      "signals": ["tax invoice", "gstin"],
+      "tax_type": "auto"
+    }
+  ]
+}

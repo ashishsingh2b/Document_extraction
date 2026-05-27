@@ -1,0 +1,1 @@
+{"sample_id": "job-001", "text": "Invoice No: INV-1001 GSTIN: 27ABCDE1234F1Z5 ...", "fields": {"invoice_number": "INV-1001", "supplier_gstin": "27ABCDE1234F1Z5", "total_amount": "12345.00"}, "metadata": {"raw_text": "Invoice No: INV-1001 GSTIN: 27ABCDE1234F1Z5 ..."}}

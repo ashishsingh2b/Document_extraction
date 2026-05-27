@@ -1,0 +1,26 @@
+{
+  "hsn_codes": {
+    "8471": "Automatic data processing machines",
+    "847130": "Portable automatic data processing machines",
+    "847141": "Data processing machines",
+    "8517": "Telephone sets and other apparatus",
+    "851712": "Telephones for cellular networks",
+    "8528": "Monitors and projectors",
+    "852872": "Reception apparatus for television",
+    "7113": "Articles of jewellery",
+    "711319": "Articles of jewellery of precious metal",
+    "6403": "Footwear with outer soles of rubber",
+    "640391": "Footwear covering the ankle"
+  },
+  "sac_codes": {
+    "9983": "Accounting, auditing and bookkeeping services",
+    "998314": "Financial auditing services",
+    "998315": "Accounting and bookkeeping services",
+    "9972": "Investigation and security services",
+    "997211": "Investigation services",
+    "9973": "Industrial cleaning services",
+    "997321": "General cleaning services",
+    "9982": "Legal services",
+    "998211": "Legal advisory and representation services"
+  }
+}

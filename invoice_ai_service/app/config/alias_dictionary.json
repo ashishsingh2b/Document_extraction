@@ -1,0 +1,124 @@
+{
+  "item_name": [
+    "description",
+    "description of goods",
+    "item",
+    "item name",
+    "product",
+    "product name",
+    "particulars",
+    "goods description"
+  ],
+  "quantity": [
+    "qty",
+    "quantity",
+    "nos",
+    "number",
+    "units",
+    "pcs",
+    "pieces"
+  ],
+  "unit_price": [
+    "rate",
+    "unit price",
+    "price per unit",
+    "price",
+    "unit rate"
+  ],
+  "line_total": [
+    "amount",
+    "total",
+    "line total",
+    "item total",
+    "value"
+  ],
+  "gstin": [
+    "gstin",
+    "gst no",
+    "gst number",
+    "gst identification number",
+    "tax id"
+  ],
+  "invoice_number": [
+    "invoice no",
+    "bill no",
+    "invoice number",
+    "bill number",
+    "inv no",
+    "tax invoice no"
+  ],
+  "invoice_date": [
+    "invoice date",
+    "bill date",
+    "date",
+    "inv date"
+  ],
+  "hsn_sac_code": [
+    "hsn code",
+    "hsn",
+    "sac code",
+    "sac",
+    "hsn/sac"
+  ],
+  "cgst_amount": [
+    "cgst",
+    "central gst",
+    "c-gst",
+    "cgst amount"
+  ],
+  "sgst_amount": [
+    "sgst",
+    "state gst",
+    "s-gst",
+    "sgst amount"
+  ],
+  "igst_amount": [
+    "igst",
+    "integrated gst",
+    "i-gst",
+    "igst amount"
+  ],
+  "place_of_supply": [
+    "place of supply",
+    "supply place",
+    "state of supply",
+    "pos"
+  ],
+  "irn": [
+    "irn",
+    "invoice reference number",
+    "e-invoice number",
+    "einvoice no"
+  ],
+  "reverse_charge": [
+    "reverse charge",
+    "rcm",
+    "reverse charge applicable"
+  ],
+  "party_name": [
+    "party name",
+    "vendor name",
+    "supplier name",
+    "customer name",
+    "buyer name"
+  ],
+  "party_address": [
+    "address",
+    "party address",
+    "vendor address",
+    "supplier address",
+    "billing address"
+  ],
+  "subtotal": [
+    "subtotal",
+    "sub total",
+    "taxable value",
+    "taxable amount"
+  ],
+  "grand_total": [
+    "grand total",
+    "total amount",
+    "invoice total",
+    "net amount"
+  ]
+}

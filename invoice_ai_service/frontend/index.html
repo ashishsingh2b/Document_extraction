@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .upload-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+        }
+
+        select {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .table-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .data-label {
+            font-weight: 600;
+        }
+
+        .processing-log {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            font-family: ui-monospace, 'Consolas', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            padding: 16px;
+            border-radius: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+        }
+
+        .processing-log.empty {
+            color: #6c7086;
+            font-style: italic;
+        }
+
+        .log-section h2 {
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Invoice Intelligence</h1>
+            <div class="upload-section">
+                <input type="file" id="fileInput" accept=".pdf">
+                <select id="ocrEngine">
+                    <option value="google_vision">Google Vision OCR</option>
+                    <option value="paddleocr">PaddleOCR (Best for Tables)</option>
+                    <option value="tesseract">Tesseract OCR</option>
+                </select>
+                <button id="uploadBtn" onclick="uploadFile()">Upload & Extract</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h2>Extracted Invoices</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Supplier</th>
+                        <th>Total</th>
+                        <th>Confidence</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-container log-section" style="margin-top: 24px;">
+            <h2>Processing log</h2>
+            <p style="color: #555; font-size: 14px; margin-bottom: 10px;">
+                Live steps stream from the server (<code>?stream=true</code>); when the run finishes, the full result appears in the table below.
+            </p>
+            <pre id="processingLog" class="processing-log empty">No run yet — upload a file to see OCR → classify → extract → pipeline steps here.</pre>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal" id="loadingModal">
+        <div class="modal-content" style="text-align: center;">
+            <div class="spinner"></div>
+            <p id="loadingText">Extracting invoice data...</p>
+        </div>
+    </div>
+
+    <!-- Data Modal -->
+    <div class="modal" id="dataModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Invoice Details</h2>
+            <div class="data-grid" id="modalData"></div>
+            <button onclick="closeModal()" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const invoices = [];
+        const LOADING_STAGES = [
+            'Reading file…',
+            'Extracting text (OCR / PDF)…',
+            'Classifying document…',
+            'Detecting invoice boundaries…',
+            'Extracting fields & line items…',
+            'Running GST pipeline & ERP mapping…',
+        ];
+        let loadingStageIndex = 0;
+        let loadingTick = null;
+
+        function setProcessingLog(lines, isPlaceholder) {
+            const el = document.getElementById('processingLog');
+            if (!lines || !lines.length) {
+                el.textContent = isPlaceholder
+                    ? '(No processing_log in response.)'
+                    : 'No run yet — upload a file to see steps here.';
+                el.classList.add('empty');
+                return;
+            }
+            el.classList.remove('empty');
+            el.textContent = lines.join('\n');
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const ocrEngine = document.getElementById('ocrEngine').value;
+            const file = fileInput.files[0];
+
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            const engineName = ocrEngine === 'google_vision' ? 'Google Vision' : 
+                              ocrEngine === 'paddleocr' ? 'PaddleOCR' : 'Tesseract';
+
+            // Show loading modal
+            document.getElementById('loadingModal').classList.add('active');
+            loadingStageIndex = 0;
+            document.getElementById('loadingText').textContent = `${LOADING_STAGES[0]} (${engineName})`;
+
+            if (loadingTick) clearInterval(loadingTick);
+            loadingTick = setInterval(() => {
+                loadingStageIndex = (loadingStageIndex + 1) % LOADING_STAGES.length;
+                document.getElementById('loadingText').textContent =
+                    `${LOADING_STAGES[loadingStageIndex]} (${engineName})`;
+            }, 900);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('ocr_engine', ocrEngine);
+
+            setProcessingLog([], false);
+            document.getElementById('processingLog').classList.remove('empty');
+            document.getElementById('processingLog').textContent = 'Connecting…';
+
+            try {
+                const response = await fetch('/api/v1/upload?stream=true', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    if (loadingTick) { clearInterval(loadingTick); loadingTick = null; }
+                    document.getElementById('loadingModal').classList.remove('active');
+                    let errBody;
+                    try { errBody = await response.json(); } catch (_) { errBody = { detail: await response.text() }; }
+                    const detail = errBody.detail || errBody.message || JSON.stringify(errBody);
+                    setProcessingLog([`✗ HTTP ${response.status}`, String(detail)], false);
+                    alert('Error: ' + detail);
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let sseBuffer = '';
+                const logLines = [];
+                let completedPayload = null;
+                let streamError = null;
+
+                function pushLogLine(line) {
+                    logLines.push(line);
+                    const el = document.getElementById('processingLog');
+                    el.classList.remove('empty');
+                    el.textContent = logLines.join('\n');
+                    el.scrollTop = el.scrollHeight;
+                }
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const parts = sseBuffer.split('\n\n');
+                    sseBuffer = parts.pop() || '';
+                    for (const block of parts) {
+                        for (const row of block.split('\n')) {
+                            if (!row.startsWith('data: ')) continue;
+                            let evt;
+                            try {
+                                evt = JSON.parse(row.slice(6));
+                            } catch (_) {
+                                continue;
+                            }
+                            if (evt.type === 'log' && evt.line != null) {
+                                if (loadingTick) {
+                                    clearInterval(loadingTick);
+                                    loadingTick = null;
+                                }
+                                document.getElementById('loadingModal').classList.remove('active');
+                                pushLogLine(evt.line);
+                            } else if (evt.type === 'error') {
+                                streamError = evt.detail || 'Unknown error';
+                            } else if (evt.type === 'complete') {
+                                completedPayload = evt.payload;
+                            }
+                        }
+                    }
+                }
+
+                if (loadingTick) {
+                    clearInterval(loadingTick);
+                    loadingTick = null;
+                }
+                document.getElementById('loadingModal').classList.remove('active');
+
+                if (streamError) {
+                    pushLogLine('✗ ' + streamError);
+                    alert('Processing error: ' + streamError);
+                    return;
+                }
+
+                if (completedPayload && completedPayload.extracted_data) {
+                    if ((completedPayload.processing_log || []).length && logLines.length === 0) {
+                        setProcessingLog(completedPayload.processing_log, false);
+                    } else if ((completedPayload.processing_log || []).length) {
+                        completedPayload.processing_log.forEach((l) => pushLogLine(l));
+                    }
+                    invoices.push(completedPayload);
+                    renderTable();
+                    fileInput.value = '';
+                    alert('Invoice extracted successfully!');
+                } else {
+                    pushLogLine('✗ No complete payload in stream');
+                    alert('Unexpected response from server');
+                }
+            } catch (error) {
+                if (loadingTick) {
+                    clearInterval(loadingTick);
+                    loadingTick = null;
+                }
+                document.getElementById('loadingModal').classList.remove('active');
+                setProcessingLog(['✗ Client error', error.message], false);
+                alert('Upload error: ' + error.message);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            invoices.forEach((inv, invIndex) => {
+                const data = inv.extracted_data;
+                
+                // Check if this is a multi-invoice PDF
+                if (data.invoices && Array.isArray(data.invoices)) {
+                    // Multi-invoice: add a row for each invoice
+                    data.invoices.forEach((invoiceData, subIndex) => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td>${inv.file_name} (${subIndex + 1}/${data.invoices.length})</td>
+                            <td>${invoiceData.invoice_data.invoice_number || '-'}</td>
+                            <td>${invoiceData.invoice_data.invoice_date || '-'}</td>
+                            <td>${invoiceData.invoice_data.supplier_name || '-'}</td>
+                            <td>${invoiceData.invoice_data.total_amount ? '₹' + invoiceData.invoice_data.total_amount : '-'}</td>
+                            <td>${invoiceData.confidence_score}%</td>
+                            <td><button class="view-btn" onclick="viewDetails(${invIndex}, ${subIndex})">View</button></td>
+                        `;
+                    });
+                } else {
+                    // Single invoice
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${inv.file_name}</td>
+                        <td>${data.invoice_data.invoice_number || '-'}</td>
+                        <td>${data.invoice_data.invoice_date || '-'}</td>
+                        <td>${data.invoice_data.supplier_name || '-'}</td>
+                        <td>${data.invoice_data.total_amount ? '₹' + data.invoice_data.total_amount : '-'}</td>
+                        <td>${data.confidence_score}%</td>
+                        <td><button class="view-btn" onclick="viewDetails(${invIndex}, null)">View</button></td>
+                    `;
+                }
+            });
+        }
+
+        function viewDetails(invIndex, subIndex) {
+            const inv = invoices[invIndex];
+            const extractedData = inv.extracted_data;
+
+            // Get the specific invoice data
+            let data;
+            if (subIndex !== null && extractedData.invoices) {
+                // Multi-invoice PDF - get specific invoice
+                data = extractedData.invoices[subIndex];
+                document.getElementById('modalTitle').textContent = `Invoice Schema: ${inv.file_name} - Invoice ${subIndex + 1}/${extractedData.invoices.length}`;
+            } else {
+                // Single invoice
+                data = extractedData;
+                document.getElementById('modalTitle').textContent = 'Invoice Schema: ' + inv.file_name;
+            }
+            
+            // Create JSON schema view
+            const schema = {
+                invoice_header: {
+                    invoice_number: data.invoice_data.invoice_number || null,
+                    invoice_date: data.invoice_data.invoice_date || null,
+                    due_date: data.invoice_data.due_date || null,
+                    document_type: data.document_type || null
+                },
+                supplier: {
+                    name: data.invoice_data.supplier_name || null,
+                    gstin: data.invoice_data.supplier_gstin || null
+                },
+                buyer: {
+                    name: data.invoice_data.buyer_name || null,
+                    gstin: data.invoice_data.buyer_gstin || null
+                },
+                line_items: data.invoice_data.items || [],
+                tax_summary: (() => {
+                    const fmt = data.detected_format || '';
+                    const isRegister = fmt.includes('register');
+                    const isReport   = fmt.includes('outstanding') || fmt.includes('report');
+                    const noBreakdown = isRegister || isReport;
+
+                    const gstTotal = data.invoice_data._gst_total;
+                    const cgst = noBreakdown ? null : data.invoice_data.cgst_amount;
+                    const sgst = noBreakdown ? null : data.invoice_data.sgst_amount;
+                    const igst = noBreakdown ? null : data.invoice_data.igst_amount;
+                    const taxable = data.invoice_data.taxable_amount;
+                    const total = data.invoice_data.total_amount;
+
+                    let totalTax = null;
+                    if (noBreakdown) {
+                        totalTax = gstTotal || null;
+                    } else {
+                        const taxSum = (cgst || 0) + (sgst || 0) + (igst || 0);
+                        const inferredTax = total && taxable && total > taxable ? +(total - taxable).toFixed(2) : null;
+                        totalTax = taxSum > 0 ? taxSum : inferredTax;
+                    }
+
+                    return {
+                        taxable_amount: taxable || null,
+                        cgst: cgst || null,
+                        sgst: sgst || null,
+                        igst: igst || null,
+                        total_tax: totalTax,
+                        total_amount: total || null
+                    };
+                })(),
+                metadata: {
+                    detected_format: data.detected_format || null,
+                    format_label: data.format_label || null,
+                    format_confidence: data.format_confidence || null,
+                    ocr_engine_requested: data.ocr_engine_requested || null,
+                    extraction_method: data.extraction_method,
+                    confidence_score: data.confidence_score,
+                    classification_confidence: data.classification_confidence,
+                    line_items_count: data.line_items_count || 0
+                }
+            };
+
+            const modalData = document.getElementById('modalData');
+            modalData.innerHTML = `
+                <div style="grid-column: 1 / -1;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button onclick="showTab('formatted')" id="tabFormatted" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">Formatted View</button>
+                        <button onclick="showTab('json')" id="tabJson" style="padding: 8px 16px; background: #e9ecef; color: #333; border: none; border-radius: 6px; cursor: pointer;">JSON Schema</button>
+                    </div>
+                    
+                    <div id="formattedView">
+                        <h3 style="margin-top: 0;">📄 Invoice Header</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px;">
+                                <strong>Invoice Number:</strong><span>${schema.invoice_header.invoice_number || '-'}</span>
+                                <strong>Invoice Date:</strong><span>${schema.invoice_header.invoice_date || '-'}</span>
+                                <strong>Due Date:</strong><span>${schema.invoice_header.due_date || '-'}</span>
+                                <strong>Document Type:</strong><span>${schema.invoice_header.document_type || '-'}</span>
+                            </div>
+                        </div>
+
+                        <h3>🏢 Supplier Details</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px;">
+                                <strong>Name:</strong><span>${schema.supplier.name || '-'}</span>
+                                <strong>GSTIN:</strong><span>${schema.supplier.gstin || '-'}</span>
+                            </div>
+                        </div>
+
+                        <h3>👤 Buyer Details</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px;">
+                                <strong>Name:</strong><span>${schema.buyer.name || '-'}</span>
+                                <strong>GSTIN:</strong><span>${schema.buyer.gstin || '-'}</span>
+                            </div>
+                        </div>
+
+                        <h3>📦 Line Items (${schema.line_items.length})</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            ${schema.line_items.length > 0 ? `
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #e9ecef;">
+                                            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">#</th>
+                                            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Description</th>
+                                            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">HSN</th>
+                                            <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Pcs</th>
+                                            <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Mts</th>
+                                            <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Rate</th>
+                                            <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${schema.line_items.map((item, i) => `
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${i + 1}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${item.description || '-'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${item.hsn_code || '-'}</td>
+                                                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${item.quantity || '-'}</td>
+                                                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${item.mts || item.meters || '-'}</td>
+                                                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${item.rate || '-'}</td>
+                                                <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">${item.amount || '-'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            ` : '<p style="text-align: center; color: #999;">No line items extracted</p>'}
+                        </div>
+
+                        <h3>💰 Tax Summary</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px;">
+                                <strong>Taxable Amount:</strong><span>₹${schema.tax_summary.taxable_amount || '-'}</span>
+                                <strong>CGST:</strong><span>₹${schema.tax_summary.cgst || '-'}</span>
+                                <strong>SGST:</strong><span>₹${schema.tax_summary.sgst || '-'}</span>
+                                <strong>IGST:</strong><span>₹${schema.tax_summary.igst || '-'}</span>
+                                <strong>Total Tax:</strong><span>₹${schema.tax_summary.total_tax || '-'}</span>
+                                <strong>Total Amount:</strong><span style="font-size: 18px; color: #10b981;">₹${schema.tax_summary.total_amount || '-'}</span>
+                            </div>
+                        </div>
+
+                        <h3>ℹ️ Metadata</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px;">
+                                <strong>Format Detected:</strong><span>${schema.metadata.detected_format || 'universal'} (${schema.metadata.format_label || 'auto'})</span>
+                                <strong>OCR Selected:</strong><span>${schema.metadata.ocr_engine_requested || '(server default)'}</span>
+                                <strong>Extraction Method:</strong><span>${schema.metadata.extraction_method}</span>
+                                <strong>Field Confidence:</strong><span>${schema.metadata.confidence_score}%</span>
+                                <strong>Doc Classification:</strong><span>${(schema.metadata.classification_confidence * 100).toFixed(0)}% (${schema.invoice_header.document_type || 'unknown'})</span>
+                                <strong>Line Items Found:</strong><span>${schema.metadata.line_items_count}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="jsonView" style="display: none;">
+                        <pre style="background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 13px;">${JSON.stringify(schema, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('dataModal').classList.add('active');
+        }
+
+        function showTab(tab) {
+            if (tab === 'formatted') {
+                document.getElementById('formattedView').style.display = 'block';
+                document.getElementById('jsonView').style.display = 'none';
+                document.getElementById('tabFormatted').style.background = '#667eea';
+                document.getElementById('tabFormatted').style.color = 'white';
+                document.getElementById('tabJson').style.background = '#e9ecef';
+                document.getElementById('tabJson').style.color = '#333';
+            } else {
+                document.getElementById('formattedView').style.display = 'none';
+                document.getElementById('jsonView').style.display = 'block';
+                document.getElementById('tabFormatted').style.background = '#e9ecef';
+                document.getElementById('tabFormatted').style.color = '#333';
+                document.getElementById('tabJson').style.background = '#667eea';
+                document.getElementById('tabJson').style.color = 'white';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('dataModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
