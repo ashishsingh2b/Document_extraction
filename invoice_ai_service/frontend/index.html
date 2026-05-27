@@ -152,28 +152,28 @@
             font-weight: 600;
         }
 
-        .processing-log {
-            background: #1e1e2e;
-            color: #cdd6f4;
-            font-family: ui-monospace, 'Consolas', monospace;
+        .terminal-hint {
+            margin-top: 24px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #764ba2;
+            background: #faf8ff;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.55;
+        }
+
+        .terminal-hint code {
             font-size: 12px;
-            line-height: 1.5;
-            padding: 16px;
-            border-radius: 8px;
-            max-height: 320px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            margin: 0;
+            background: #eef;
+            padding: 2px 6px;
+            border-radius: 4px;
         }
 
-        .processing-log.empty {
-            color: #6c7086;
-            font-style: italic;
-        }
-
-        .log-section h2 {
-            margin-bottom: 12px;
+        .terminal-hint strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #764ba2;
         }
     </style>
 </head>
@@ -211,12 +211,11 @@
             </table>
         </div>
 
-        <div class="table-container log-section" style="margin-top: 24px;">
-            <h2>Processing log</h2>
-            <p style="color: #555; font-size: 14px; margin-bottom: 10px;">
-                Live steps stream from the server (<code>?stream=true</code>); when the run finishes, the full result appears in the table below.
-            </p>
-            <pre id="processingLog" class="processing-log empty">No run yet — upload a file to see OCR → classify → extract → pipeline steps here.</pre>
+        <div class="terminal-hint">
+            <strong>E2E extraction trace → server terminal only</strong>
+            Run <code>uvicorn app.main:app --reload</code> and watch stdout (or <code>logs/app.log</code>). Each step is logged as <code>[E2E]</code>.
+            Optional API: <code>?stream=true</code> streams the same lines to SSE clients — this UI uses plain JSON (<code>/api/v1/upload</code>) so the browser stays simple.
+            See also <code>END_TO_END_TRACE.md</code> for the ordered call map.
         </div>
     </div>
 
@@ -250,20 +249,6 @@
         let loadingStageIndex = 0;
         let loadingTick = null;
 
-        function setProcessingLog(lines, isPlaceholder) {
-            const el = document.getElementById('processingLog');
-            if (!lines || !lines.length) {
-                el.textContent = isPlaceholder
-                    ? '(No processing_log in response.)'
-                    : 'No run yet — upload a file to see steps here.';
-                el.classList.add('empty');
-                return;
-            }
-            el.classList.remove('empty');
-            el.textContent = lines.join('\n');
-            el.scrollTop = el.scrollHeight;
-        }
-
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
             const ocrEngine = document.getElementById('ocrEngine').value;
@@ -294,72 +279,11 @@
             formData.append('file', file);
             formData.append('ocr_engine', ocrEngine);
 
-            setProcessingLog([], false);
-            document.getElementById('processingLog').classList.remove('empty');
-            document.getElementById('processingLog').textContent = 'Connecting…';
-
             try {
-                const response = await fetch('/api/v1/upload?stream=true', {
+                const response = await fetch('/api/v1/upload', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) {
-                    if (loadingTick) { clearInterval(loadingTick); loadingTick = null; }
-                    document.getElementById('loadingModal').classList.remove('active');
-                    let errBody;
-                    try { errBody = await response.json(); } catch (_) { errBody = { detail: await response.text() }; }
-                    const detail = errBody.detail || errBody.message || JSON.stringify(errBody);
-                    setProcessingLog([`✗ HTTP ${response.status}`, String(detail)], false);
-                    alert('Error: ' + detail);
-                    return;
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let sseBuffer = '';
-                const logLines = [];
-                let completedPayload = null;
-                let streamError = null;
-
-                function pushLogLine(line) {
-                    logLines.push(line);
-                    const el = document.getElementById('processingLog');
-                    el.classList.remove('empty');
-                    el.textContent = logLines.join('\n');
-                    el.scrollTop = el.scrollHeight;
-                }
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    sseBuffer += decoder.decode(value, { stream: true });
-                    const parts = sseBuffer.split('\n\n');
-                    sseBuffer = parts.pop() || '';
-                    for (const block of parts) {
-                        for (const row of block.split('\n')) {
-                            if (!row.startsWith('data: ')) continue;
-                            let evt;
-                            try {
-                                evt = JSON.parse(row.slice(6));
-                            } catch (_) {
-                                continue;
-                            }
-                            if (evt.type === 'log' && evt.line != null) {
-                                if (loadingTick) {
-                                    clearInterval(loadingTick);
-                                    loadingTick = null;
-                                }
-                                document.getElementById('loadingModal').classList.remove('active');
-                                pushLogLine(evt.line);
-                            } else if (evt.type === 'error') {
-                                streamError = evt.detail || 'Unknown error';
-                            } else if (evt.type === 'complete') {
-                                completedPayload = evt.payload;
-                            }
-                        }
-                    }
-                }
 
                 if (loadingTick) {
                     clearInterval(loadingTick);
@@ -367,25 +291,27 @@
                 }
                 document.getElementById('loadingModal').classList.remove('active');
 
-                if (streamError) {
-                    pushLogLine('✗ ' + streamError);
-                    alert('Processing error: ' + streamError);
+                let result;
+                try {
+                    result = await response.json();
+                } catch (_) {
+                    alert('Error: invalid JSON from server');
                     return;
                 }
 
-                if (completedPayload && completedPayload.extracted_data) {
-                    if ((completedPayload.processing_log || []).length && logLines.length === 0) {
-                        setProcessingLog(completedPayload.processing_log, false);
-                    } else if ((completedPayload.processing_log || []).length) {
-                        completedPayload.processing_log.forEach((l) => pushLogLine(l));
-                    }
-                    invoices.push(completedPayload);
+                if (!response.ok) {
+                    const detail = result.detail || result.message || JSON.stringify(result);
+                    alert('Error: ' + detail);
+                    return;
+                }
+
+                if (result.extracted_data) {
+                    invoices.push(result);
                     renderTable();
                     fileInput.value = '';
-                    alert('Invoice extracted successfully!');
+                    alert('Invoice extracted successfully! (E2E trace: see server terminal [E2E] lines)');
                 } else {
-                    pushLogLine('✗ No complete payload in stream');
-                    alert('Unexpected response from server');
+                    alert('Unexpected response: missing extracted_data');
                 }
             } catch (error) {
                 if (loadingTick) {
@@ -393,7 +319,6 @@
                     loadingTick = null;
                 }
                 document.getElementById('loadingModal').classList.remove('active');
-                setProcessingLog(['✗ Client error', error.message], false);
                 alert('Upload error: ' + error.message);
             }
         }

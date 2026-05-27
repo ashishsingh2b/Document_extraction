@@ -2,7 +2,7 @@
 
 **Audience:** Engineers, operators, and LLMs that need to understand this repository **from scratch** without prior context.
 
-**Companion docs:** `ARCHITECTURE_AND_TRAINING_PLAN.md` (flow + training policy), `END_TO_END_GUIDE.md` (operational workflow), `scripts/README.md` (scripts index).
+**Companion docs:** `ARCHITECTURE_AND_TRAINING_PLAN.md` (flow + training policy), `END_TO_END_GUIDE.md` (operational workflow), **`END_TO_END_TRACE.md`** (function-by-function call order + log legend), `scripts/README.md` (scripts index).
 
 ---
 
@@ -192,10 +192,11 @@ frontend/
 
 **Behavior:**
 
-- **`POST /api/v1/upload`** with `multipart/form-data`: fields **`file`** (required) and **`ocr_engine`** (optional dropdown: `google_vision`, `paddleocr`, `tesseract`). Same as API; see **`upload_invoice`** in `app/api/routes/upload.py`.
-- Uses **relative** `fetch('/api/v1/upload', ...)`, so the page must be served from the **same origin** as the API (open via the URLs above). Opening `index.html` as `file://` will fail CORS/origin-wise.
-- While upload is in flight, the loading modal **cycles generic stages** (reading file → OCR → classify → …). **Exact** steps appear after the response returns in **`processing_log`** (sync API — no live SSE yet). The page has a **Processing log** `<pre>` showing those lines.
-- If **`UPLOAD_API_KEY`** is set in `.env`, the frontend **does not** send `X-API-Key`; use curl/Postman or extend the JS to pass the header. For unsecured dev servers, uploads from the UI work without the header.
+- **`POST /api/v1/upload`** with `multipart/form-data`: **`file`** + **`ocr_engine`**. The bundled page uses **JSON** (no `stream`); the step-by-step trace is written to the **server process** as **`[E2E]`** log lines (terminal or `logs/app.log`), not in the browser. See **`END_TO_END_TRACE.md`**.
+- **`?stream=true`** (optional): same **`[E2E]`** on the server **and** `text/event-stream` events for programmatic UIs.
+- Uses **relative** `fetch('/api/v1/upload', ...)`, so serve the page from the **same origin** as the API (`/frontend/…`). `file://` will fail.
+- While upload runs, the modal **cycles placeholder** stage text (the real trace is **[E2E]** on the server).
+- If **`UPLOAD_API_KEY`** is set, the frontend **does not** send `X-API-Key`; use curl/Postman or extend the JS for production.
 
 ---
 
@@ -222,7 +223,7 @@ Unless you change **`API_V1_PREFIX`** in `.env`, **`{prefix}`** = **`/api/v1`**.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `{prefix}/upload` | **Main pipeline:** file upload → OCR → classify → extract → pipeline → ERP JSON. **Form:** `file` (required), `force_reprocess` (optional bool), `ocr_engine` (optional: e.g. `paddleocr`, `tesseract`, `google_vision`). **Header (optional):** `X-API-Key` if `UPLOAD_API_KEY` is set — see `app/api/deps.py`. |
+| POST | `{prefix}/upload` | **Main pipeline.** **Form:** `file`, optional `force_reprocess`, `ocr_engine`. **`[E2E]`** trace is always mirrored to **`logging`/terminal** (`_progress`). **Query `stream=true`:** adds **`text/event-stream`** (SSE) with the same trace lines plus `complete` payload. Omit `stream` → single JSON (**`processing_log`** still in body). **`X-API-Key`** if `UPLOAD_API_KEY` set. |
 | GET | `{prefix}/upload/test` | Static JSON confirming the upload route is registered |
 
 ### 8.4 Training & patterns (`{prefix}`)
@@ -259,7 +260,7 @@ Unless you change **`API_V1_PREFIX`** in `.env`, **`{prefix}`** = **`/api/v1`**.
 
 ## 10. Typical response shape (single invoice)
 
-**Top-level `UploadResponse`** also includes **`processing_log`**: an ordered list of short human-readable strings (OCR → classify → split → fields/items → pipeline). The static frontend shows this in the **Processing log** panel after each upload.
+**Top-level `UploadResponse`** includes **`processing_log`** (same strings as **`[E2E]`** in server logs). The default web UI does **not** show this list; watch **`uvicorn`** stdout or **`logs/app.log`** (filter `grep '\[E2E\]'`).
 
 `UploadResponse.extracted_data` is a dict-like payload. Important nested keys:
 

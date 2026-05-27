@@ -125,4 +125,12 @@ class StorageService:
         logger.info(f"Deleted file: {object_name}")
 
 
+    def backend_label(self) -> str:
+        """Human-readable active storage backend (for upload trace logs)."""
+        self._initialize()
+        if self._use_filesystem or self.client is None:
+            return f"filesystem:{self._storage_dir.resolve()}"
+        return f"minio:{settings.MINIO_ENDPOINT}/{self.bucket_name}"
+
+
 storage_service = StorageService()
